@@ -40,12 +40,11 @@ public class Main {
     BufferedWriter pathWriter;
 
     public Main() throws IOException { 
-    inputReader = new BufferedReader(new FileReader(new File("cases/data/AS-1.csv")));
+    inputReader = new BufferedReader(new FileReader(new File("cases/data/turkey0.csv")));
     dataReader = new BufferedReader(new FileReader(new File("cases/weather.csv")));
-    missionReader = new BufferedReader(new FileReader(new File("cases/flights/AS-1.in")));
-    edgeReader = new BufferedReader(new FileReader(new File("edges.csv")));
-
+    missionReader = new BufferedReader(new FileReader(new File("cases/flights/turkey0.in")));
     edgesWriter = new BufferedWriter(new FileWriter(new File("edges.csv")));
+    edgeReader = new BufferedReader(new FileReader(new File("edges.csv")));
     pathWriter = new BufferedWriter(new FileWriter(new File("path.out")));
     }
 
@@ -54,11 +53,11 @@ public class Main {
         // read the input as csv format for the columns (id, lat, lon, airfield, waitCost)
         String data;
         while ((data = inputReader.readLine()) != null) {
-            String[] line = inputReader.readLine().split(",");
+            String[] line = data.split(",");
             String id = line[0];
-            double lat = Double.parseDouble(line[1]);
-            double lon = Double.parseDouble(line[2]);
-            String airfield = line[3];
+            String airfield = line[1];
+            double lat = Double.parseDouble(line[2]);
+            double lon = Double.parseDouble(line[3]);
             double waitCost = Double.parseDouble(line[4]);
             nodes.put(id, new Node(id, lat, lon, airfield, waitCost, new LinkedList<>(), new LinkedList<>())); // Create node
         }
@@ -124,12 +123,12 @@ public class Main {
     private void readMissions() throws IOException { // READ MISSIONS
         String line;
         while ((line = missionReader.readLine()) != null) {
-            String[] data = line.split(",");
+            String[] data = line.split(" ");
             String startNode = data[0];
-            long startTime = Long.parseLong(data[1]);
-            String endNode = data[2];
-            // TODO - Add deadline
-            missions.add(new Mission(startNode, startTime, endNode));
+            String endNode = data[1];
+            // long startTime = Long.parseLong(data[2]);
+            // TODO - Add deadline and start time
+            missions.add(new Mission(startNode, 1680307200, endNode));
         }
     }
 
@@ -232,8 +231,12 @@ public class Main {
     private void calculateEdges() {
         for (Node node : nodes.values()) {
             for (Node adjacent : nodes.values()) {
+                if (node.id.equals(adjacent.id))
+                    continue;
                 double distance = calculateDistance(node, adjacent);
+                // System.out.println(distance);
                 if (distance <= edgeConstraint) {
+                    // System.out.println("Added" + node.id + " " + adjacent.id);
                     node.adjacents.add(adjacent);
                     node.distance.add(distance);
                 }
@@ -242,12 +245,14 @@ public class Main {
     }
 
     private void printEdges() throws IOException {
+        edgesWriter.write("from,to,distance\n"); // TODO - Might need to change this
         for (Node node : nodes.values()) {
             for (int i = 0; i < node.adjacents.size(); i++) {
                 Node adjacent = node.adjacents.get(i);
                 double distance = node.distance.get(i);
-                edgesWriter.write(node.id + " " + adjacent.id + " " + distance + "\n");
+                edgesWriter.write(node.id + "," + adjacent.id + "," + distance + "\n");
             }
+            edgesWriter.flush();
         }
     }
 
@@ -268,7 +273,7 @@ public class Main {
 
     public static void main(String[] args) throws IOException {
         Main main = new Main();
-        main.runGraph();
-        // main.run();
+        // main.runGraph();
+        main.run();
     }
 }
