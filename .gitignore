@@ -25,3 +25,6 @@ replay_pid*
 
 *.out
 cases/
+input/
+output/
+```

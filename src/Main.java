@@ -18,12 +18,11 @@ public class Main {
 
     public record Mission(String startNode, String endNode, long startTime, long deadline) { }
 
-    static final String input = "AS-1";
-    static final boolean edges = true; // Change this to false to calculate edges
-    static final boolean dijkstra = false;  // Change this to false to use A* algorithm
-    static final long sixHours = 21600; // 6 hours in seconds
-    static final long minTime = 1680307200;
-    static final long maxTime = 1682899200; // Maximum time for the weather data
+    static String input = "turkey1";
+    static boolean edges; // Change this to false to calculate edges
+    static boolean dijkstra;  // Change this to false to use A* algorithm
+    
+    final long sixHours = 21600; // 6 hours in seconds
     String aircraftType; // Maximum edge distance in meters
     int edgeConstraint;
     int _18hourLimit;
@@ -47,7 +46,7 @@ public class Main {
         missionReader = new BufferedReader(new FileReader(new File("cases/flights/" + input + ".in")));
         if (edges){
             edgeReader = new BufferedReader(new FileReader(new File("cases/edges/" + input + ".csv")));
-            pathWriter = new BufferedWriter(new FileWriter(new File("path.out")));
+            pathWriter = new BufferedWriter(new FileWriter(new File("cases/paths/" + input + ".out")));
         }
         else 
             edgesWriter = new BufferedWriter(new FileWriter(new File("cases/edges/" + input + ".csv")));
@@ -134,14 +133,12 @@ public class Main {
             String startNode = data[0];
             String endNode = data[1];
             long startTime = Long.parseLong(data[2]);
-            Long deadline = Long.parseLong(data[3]);
-            // TODO - Add deadline and start time
+            long deadline = Long.parseLong(data[3]);
             missions.add(new Mission(startNode, endNode, startTime, deadline));
         }
     }
 
     private void applyAlgorithm(Mission mission) throws IOException {
-        // TODO - Add deadline
         PriorityQueue<PriorityObject> queue = new PriorityQueue<>((a, b) -> { 
             return Double.compare(a.g + a.h, b.g + b.h);
         });
@@ -177,9 +174,15 @@ public class Main {
         if (result != null) {
             double cost = 0d;
             StringBuilder builder = new StringBuilder();
+            String last = null;
             while (result != null) {
-                builder.append(result.id).append(" ");
+                if (result.id.equals(last))
+                    builder.append("PARK ");
+                else
+                    builder.append(result.id).append(" ");
+                last = result.id;
                 cost += result.g;
+
                 result = result.parent;
             }
             builder.append(cost);
@@ -291,6 +294,9 @@ public class Main {
     }
 
     public static void main(String[] args) throws IOException {
+        Main.edges = Boolean.parseBoolean(args[0]);
+        Main.dijkstra = Boolean.parseBoolean(args[1]);
+        // Main.input = args[2];
         Main main = new Main();
         if (edges)
             main.run();
