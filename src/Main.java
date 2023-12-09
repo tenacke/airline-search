@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.management.GarbageCollectorMXBean;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -18,9 +19,10 @@ public class Main {
 
     public record Mission(String startNode, String endNode, long startTime, long deadline) { }
 
-    static String input = "turkey1";
+    static String input = "EU-0";
     static boolean edges; // Change this to false to calculate edges
     static boolean dijkstra;  // Change this to false to use A* algorithm
+    static boolean debug;
     
     final long sixHours = 21600; // 6 hours in seconds
     String aircraftType; // Maximum edge distance in meters
@@ -41,15 +43,15 @@ public class Main {
     BufferedWriter pathWriter;
 
     public Main() throws IOException { // INITIALIZE READERS
-        inputReader = new BufferedReader(new FileReader(new File("cases/data/" + input + ".csv")));
-        dataReader = new BufferedReader(new FileReader(new File("cases/weather.csv")));
-        missionReader = new BufferedReader(new FileReader(new File("cases/flights/" + input + ".in")));
+        inputReader = new BufferedReader(new FileReader(new File("input/data/" + input + ".csv")));
+        dataReader = new BufferedReader(new FileReader(new File("input/weather.csv")));
+        missionReader = new BufferedReader(new FileReader(new File("input/flights/" + input + ".in")));
         if (edges){
-            edgeReader = new BufferedReader(new FileReader(new File("cases/edges/" + input + ".csv")));
-            pathWriter = new BufferedWriter(new FileWriter(new File("cases/paths/" + input + ".out")));
+            edgeReader = new BufferedReader(new FileReader(new File("output/edges/" + input + ".csv")));
+            pathWriter = new BufferedWriter(new FileWriter(new File("output/paths/" + input + ".out")));
         }
         else 
-            edgesWriter = new BufferedWriter(new FileWriter(new File("cases/edges/" + input + ".csv")));
+            edgesWriter = new BufferedWriter(new FileWriter(new File("output/edges/" + input + ".csv")));
     }
 
     private void readInput() throws IOException { // INITIALIZE NODES
@@ -111,9 +113,9 @@ public class Main {
                 break;
 
             case "Skyfleet S570":
-                edgeConstraint = 1500;
-                _18hourLimit = 1200;
-                _12hourLimit = 900;
+                edgeConstraint = 750;
+                _18hourLimit = 500;
+                _12hourLimit = 300;
                 break;
 
             case "T-16 Skyhopper":
@@ -136,6 +138,51 @@ public class Main {
             long deadline = Long.parseLong(data[3]);
             missions.add(new Mission(startNode, endNode, startTime, deadline));
         }
+    }
+
+    private record PObject(String id, PObject parent, double g, double h) { }
+    private void simpleAstar(Mission mission) {
+        PriorityQueue<PObject> queue = new PriorityQueue<>((a, b) -> { 
+            return Double.compare(a.g + a.h, b.g + b.h);
+        });
+        PObject result = null;
+        HashSet<String> visited = new HashSet<>(); // Key: "<node_id>"
+        queue.add(new PObject(mission.startNode, null, 0, 0));
+        while (!queue.isEmpty()){
+            PObject current = queue.poll();
+            if (current.id.equals(mission.endNode)) {
+                result = current;
+                break;
+            }
+            visited.add(current.id);
+            Node currentNode = nodes.get(current.id);
+            LinkedList<Node> adjacents = currentNode.adjacents;
+            LinkedList<Double> distances = currentNode.distance;
+            for (int i = 0; i < adjacents.size(); i++) {
+                Node adjacent = adjacents.get(i);
+                double distance = distances.get(i);
+                if (!visited.contains(adjacent.id)) {
+                    double g = current.g + distance;
+                    double h = calculateHeuristic(adjacent, mission.endNode);
+                    queue.add(new PObject(adjacent.id, current, g, h));
+                }
+            }
+        }
+        if (result != null) {
+            double cost = 0d;
+            StringBuilder builder = new StringBuilder();
+            while (result != null) {
+                builder.append(result.id).append(" ");
+                cost += result.g;
+
+                result = result.parent;
+            }
+            builder.append(cost);
+            System.out.println(builder.toString());
+        } else {
+            System.out.println("No feasible path");
+        }
+
     }
 
     private void applyAlgorithm(Mission mission) throws IOException {
@@ -166,7 +213,7 @@ public class Main {
                 String key = adjacent.id + "_" + time;
                 if (time <= mission.deadline && !visited.contains(key)) {
                     double g = current.g + calculateCost(currentNode, adjacent, distance, current.time, time);
-                    double h = calculateHeuristic(adjacent, mission.endNode, time);
+                    double h = calculateHeuristic(adjacent, mission.endNode);
                     queue.add(new PriorityObject(adjacent.id, time, current, g, h));
                 }
             }
@@ -226,11 +273,11 @@ public class Main {
             return sixHours;
     }
 
-    private double calculateHeuristic(Node node, String target, long time) {
+    private double calculateHeuristic(Node node, String target) {
         if (dijkstra)
             return 0d;
         Node targetNode = nodes.get(target);
-        return calculateDistance(node, targetNode); // TODO - Implement this
+        return calculateDistance(node, targetNode);
     }
 
     private void run() throws IOException {
@@ -240,7 +287,10 @@ public class Main {
         readLimits();
         readMissions();
         for (Mission mission : missions)
-            applyAlgorithm(mission);
+            if (debug)
+                simpleAstar(mission);
+            else
+                applyAlgorithm(mission);
     }
 
     private void runGraph() throws IOException {
@@ -296,7 +346,8 @@ public class Main {
     public static void main(String[] args) throws IOException {
         Main.edges = Boolean.parseBoolean(args[0]);
         Main.dijkstra = Boolean.parseBoolean(args[1]);
-        // Main.input = args[2];
+        Main.debug = Boolean.parseBoolean(args[2]);
+        // Main.input = args[3];
         Main main = new Main();
         if (edges)
             main.run();
