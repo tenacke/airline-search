@@ -1,5 +1,5 @@
 compile: src/Main.java
-	javac -d bin/ -cp bin/ src/Main.java
+	javac -d bin/ -cp bin/ src/*
 	
 1: compile # 1st phase of the project (edge weight)
 	java -cp bin/ Main false false false

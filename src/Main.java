@@ -7,22 +7,24 @@ import java.io.IOException;
 import java.lang.management.GarbageCollectorMXBean;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.PriorityQueue;
 
 public class Main {
-    public record Node(String id, double lat, double lon, String airfield, double waitCost, LinkedList<Node> adjacents, LinkedList<Double> distance) { }
-
+    
     public record Airfield(String id, long time, int weather) { }    
 
     public record PriorityObject(String id, long time, PriorityObject parent, double g, double h) { }
 
     public record Mission(String startNode, String endNode, long startTime, long deadline) { }
 
-    static String input = "EU-0";
+    static String input = "AS-1";
     static boolean edges; // Change this to false to calculate edges
     static boolean dijkstra;  // Change this to false to use A* algorithm
     static boolean debug;
+
+    static double density = 0.05d;
     
     final long sixHours = 21600; // 6 hours in seconds
     String aircraftType; // Maximum edge distance in meters
@@ -64,7 +66,7 @@ public class Main {
             String airfield = line[1];
             double lat = Double.parseDouble(line[2]);
             double lon = Double.parseDouble(line[3]);
-            double waitCost = Double.parseDouble(line[4]);
+            double waitCost = Double.parseDouble(line[4]) / 8;
             nodes.put(id, new Node(id, lat, lon, airfield, waitCost, new LinkedList<>(), new LinkedList<>())); // Create node
         }
     }
@@ -156,11 +158,11 @@ public class Main {
             }
             visited.add(current.id);
             Node currentNode = nodes.get(current.id);
-            LinkedList<Node> adjacents = currentNode.adjacents;
-            LinkedList<Double> distances = currentNode.distance;
-            for (int i = 0; i < adjacents.size(); i++) {
-                Node adjacent = adjacents.get(i);
-                double distance = distances.get(i);
+            Iterator<Node> adj = currentNode.adjacents.iterator();
+            Iterator<Double> dist = currentNode.distance.iterator();            
+            for (int i = 0; i < currentNode.adjacents.size(); i++) {
+                Node adjacent = adj.next();
+                double distance = dist.next();
                 if (!visited.contains(adjacent.id)) {
                     double g = current.g + distance;
                     double h = calculateHeuristic(adjacent, mission.endNode);
@@ -203,7 +205,7 @@ public class Main {
             Node currentNode = nodes.get(current.id);
             LinkedList<Node> adjacents = currentNode.adjacents;
             LinkedList<Double> distances = currentNode.distance;
-            if ((current.time + sixHours <= mission.deadline) && !visited.contains(current.id + "_" + (current.time + sixHours)))
+            if ((current.time + sixHours <= 1682888400) && !visited.contains(current.id + "_" + (current.time + sixHours)))
                 queue.add(new PriorityObject(current.id, current.time + sixHours, current, current.g + currentNode.waitCost, current.h));
             for (int i = 0; i < adjacents.size(); i++) {
                 Node adjacent = adjacents.get(i);
@@ -211,7 +213,7 @@ public class Main {
                 // System.out.println(adjacent.id + " " + distance);
                 long time = current.time + calculateTravelTime(distance);
                 String key = adjacent.id + "_" + time;
-                if (time <= mission.deadline && !visited.contains(key)) {
+                if (time <= 1682888400 && !visited.contains(key)) {
                     double g = current.g + calculateCost(currentNode, adjacent, distance, current.time, time);
                     double h = calculateHeuristic(adjacent, mission.endNode);
                     queue.add(new PriorityObject(adjacent.id, time, current, g, h));
@@ -260,7 +262,7 @@ public class Main {
         int weather2 = airfields.get(node2.airfield + "_" + time2).weather;
         double departureMultiplier = calculateWeatherMultplier(weather1);
         double arrivalMultiplier = calculateWeatherMultplier(weather2);
-        double result = fixedCost * departureMultiplier * arrivalMultiplier + distance;
+        double result = fixedCost * departureMultiplier * arrivalMultiplier + distance; // TODO descrpite eklenecek
         return result;
     }
 
@@ -296,22 +298,29 @@ public class Main {
     private void runGraph() throws IOException {
         readInput();
         readLimits();
-        calculateEdges();
+        // calculateEdges();
+        Generator generator = new Generator(density);
+        generator.generate(nodes.values().toArray());
         printEdges();
     }
 
     private void calculateEdges() {
         for (Node node : nodes.values()) {
+            PriorityQueue<Node> queue = new PriorityQueue<>((a, b) -> {
+                double distance = calculateDistance(node, a);
+                double distance2 = calculateDistance(node, b);
+                return Double.compare(distance, distance2);
+            });
             for (Node adjacent : nodes.values()) {
                 if (node.id.equals(adjacent.id))
                     continue;
-                double distance = calculateDistance(node, adjacent);
+                queue.add(adjacent);
                 // System.out.println(distance);
-                if (distance <= edgeConstraint) {
-                    // System.out.println("Added" + node.id + " " + adjacent.id);
-                    node.adjacents.add(adjacent);
-                    node.distance.add(distance);
-                }
+            }
+            for (int i = 0; i < 5; i++) {
+                Node adj = queue.poll();
+                node.adjacents.add(adj);
+                node.distance.add(calculateDistance(node, adj));
             }
         }
     }
@@ -332,7 +341,7 @@ public class Main {
         return haversine(node1.lat, node1.lon, node2.lat, node2.lon);
     }
 
-    private double haversine(double lat1, double lon1, double lat2, double lon2) {
+    public static double haversine(double lat1, double lon1, double lat2, double lon2) {
         double dLat = Math.toRadians(lat2 - lat1);
         double dLon = Math.toRadians(lon2 - lon1);
         lat1 = Math.toRadians(lat1);
