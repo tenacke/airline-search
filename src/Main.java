@@ -10,25 +10,37 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.PriorityQueue;
+import java.util.Stack;
 
 public class Main {
+
+    public record Node(String id, double lat, double lon, String airfield, double waitCost, LinkedList<Node> adjacents, LinkedList<Double> distance) { }
     
-    public record Airfield(String id, long time, int weather) { }    
+    private record Airfield(String id, long time, int weather) { }    
 
-    public record PriorityObject(String id, long time, PriorityObject parent, double g, double h) { }
+    private interface PObject {
+        String id();
+        PObject parent();
+        double g();
+        double h();
+    }
 
-    public record Mission(String startNode, String endNode, long startTime, long deadline) { }
+    private record PriorityTimeObject(String id, long time, PriorityTimeObject parent, double g, double h) implements PObject { }
 
-    static String input = "AS-1";
-    static boolean edges; // Change this to false to calculate edges
-    static boolean dijkstra;  // Change this to false to use A* algorithm
-    static boolean debug;
+    private record PriorityObject(String id, PObject parent, double g, double h) implements PObject { }
+
+    private record Mission(String startNode, String endNode, long startTime, long deadline) { }
+
+    static String input = "TR-3";
+    static boolean edges = true; // Change this to false to calculate edges
+    static boolean dijkstra = false;  // Change this to false to use A* algorithm
+    static int task = 2;
 
     static double density = 0.05d;
     
     final long sixHours = 21600; // 6 hours in seconds
     String aircraftType; // Maximum edge distance in meters
-    int edgeConstraint;
+    // int edgeConstraint;
     int _18hourLimit;
     int _12hourLimit;
 
@@ -45,20 +57,20 @@ public class Main {
     BufferedWriter pathWriter;
 
     public Main() throws IOException { // INITIALIZE READERS
-        inputReader = new BufferedReader(new FileReader(new File("input/data/" + input + ".csv")));
-        dataReader = new BufferedReader(new FileReader(new File("input/weather.csv")));
-        missionReader = new BufferedReader(new FileReader(new File("input/flights/" + input + ".in")));
+        inputReader = new BufferedReader(new FileReader(new File("cases/airports/" + input + ".csv")));
+        dataReader = new BufferedReader(new FileReader(new File("cases/weather.csv")));
+        missionReader = new BufferedReader(new FileReader(new File("cases/missions/" + input + ".in")));
         if (edges){
-            edgeReader = new BufferedReader(new FileReader(new File("output/edges/" + input + ".csv")));
-            pathWriter = new BufferedWriter(new FileWriter(new File("output/paths/" + input + ".out")));
-        }
+            edgeReader = new BufferedReader(new FileReader(new File("cases/directions/" + input + ".csv")));
+            pathWriter = new BufferedWriter(new FileWriter(new File("cases/outputs/" + input + "-Task" + task + ".out")));
+        } 
         else 
-            edgesWriter = new BufferedWriter(new FileWriter(new File("output/edges/" + input + ".csv")));
+            edgesWriter = new BufferedWriter(new FileWriter(new File("cases/directions/" + input + ".csv")));
     }
 
     private void readInput() throws IOException { // INITIALIZE NODES
         inputReader.readLine(); // Skip first line
-        // read the input as csv format for the columns (id, lat, lon, airfield, waitCost)
+        // read the input as csv format for the columns (id, airfield, lat, lon, waitCost)
         String data;
         while ((data = inputReader.readLine()) != null) {
             String[] line = data.split(",");
@@ -92,10 +104,11 @@ public class Main {
             String[] data = line.split(",");
             String from = data[0];
             String to = data[1];
-            double distance = Double.parseDouble(data[2]);
+            // double distance = Double.parseDouble(data[2]);
             Node node = nodes.get(from);
-            node.adjacents.add(nodes.get(to));
-            node.distance.add(distance);
+            Node node2 = nodes.get(to);
+            node.adjacents.add(node2);
+            node.distance.add(calculateDistance(node, node2));
         }
     }
 
@@ -103,27 +116,23 @@ public class Main {
         aircraftType = missionReader.readLine().strip(); 
         switch (aircraftType) {
             case "Carreidas 160":
-                edgeConstraint = 500;
-                _18hourLimit = 400;
-                _12hourLimit = 300;
+                _18hourLimit = 350;
+                _12hourLimit = 175;
                 break;
             
             case "Orion III":
-                edgeConstraint = 1000;
-                _18hourLimit = 750;
-                _12hourLimit = 500;
+                _18hourLimit = 3000;
+                _12hourLimit = 1500;
                 break;
 
             case "Skyfleet S570":
-                edgeConstraint = 750;
-                _18hourLimit = 500;
-                _12hourLimit = 300;
+                _18hourLimit = 1000;
+                _12hourLimit = 500;
                 break;
 
             case "T-16 Skyhopper":
-                edgeConstraint = 2000;
-                _18hourLimit = 1500;
-                _12hourLimit = 1000;
+                _18hourLimit = 5000;
+                _12hourLimit = 2500;
                 break;
         }
     }
@@ -142,16 +151,15 @@ public class Main {
         }
     }
 
-    private record PObject(String id, PObject parent, double g, double h) { }
-    private void simpleAstar(Mission mission) {
-        PriorityQueue<PObject> queue = new PriorityQueue<>((a, b) -> { 
+    private void simpleAstar(Mission mission) throws IOException {
+        PriorityQueue<PriorityObject> queue = new PriorityQueue<>((a, b) -> { 
             return Double.compare(a.g + a.h, b.g + b.h);
         });
-        PObject result = null;
+        PriorityObject result = null;
         HashSet<String> visited = new HashSet<>(); // Key: "<node_id>"
-        queue.add(new PObject(mission.startNode, null, 0, 0));
+        queue.add(new PriorityObject(mission.startNode, null, 0, 0));
         while (!queue.isEmpty()){
-            PObject current = queue.poll();
+            PriorityObject current = queue.poll();
             if (current.id.equals(mission.endNode)) {
                 result = current;
                 break;
@@ -164,38 +172,24 @@ public class Main {
                 Node adjacent = adj.next();
                 double distance = dist.next();
                 if (!visited.contains(adjacent.id)) {
-                    double g = current.g + distance;
+                    double g = current.g + calculateCost(currentNode, adjacent, distance, mission.startTime, mission.startTime);
                     double h = calculateHeuristic(adjacent, mission.endNode);
-                    queue.add(new PObject(adjacent.id, current, g, h));
+                    queue.add(new PriorityObject(adjacent.id, current, g, h));
                 }
             }
         }
-        if (result != null) {
-            double cost = 0d;
-            StringBuilder builder = new StringBuilder();
-            while (result != null) {
-                builder.append(result.id).append(" ");
-                cost += result.g;
-
-                result = result.parent;
-            }
-            builder.append(cost);
-            System.out.println(builder.toString());
-        } else {
-            System.out.println("No feasible path");
-        }
-
+        printPath(result);
     }
 
     private void applyAlgorithm(Mission mission) throws IOException {
-        PriorityQueue<PriorityObject> queue = new PriorityQueue<>((a, b) -> { 
+        PriorityQueue<PriorityTimeObject> queue = new PriorityQueue<>((a, b) -> { 
             return Double.compare(a.g + a.h, b.g + b.h);
         });
-        PriorityObject result = null;
+        PriorityTimeObject result = null;
         HashSet<String> visited = new HashSet<>(); // Key: "<node_id>_<time>" so all nodes are unique
-        queue.add(new PriorityObject(mission.startNode, mission.startTime, null, 0, 0));
+        queue.add(new PriorityTimeObject(mission.startNode, mission.startTime, null, 0, 0));
         while (!queue.isEmpty()){
-            PriorityObject current = queue.poll();
+            PriorityTimeObject current = queue.poll();
             visited.add(current.id + "_" + current.time);
             // System.out.println(current.id + " " + current.time);
             if (current.id.equals(mission.endNode)) {
@@ -205,42 +199,52 @@ public class Main {
             Node currentNode = nodes.get(current.id);
             LinkedList<Node> adjacents = currentNode.adjacents;
             LinkedList<Double> distances = currentNode.distance;
-            if ((current.time + sixHours <= 1682888400) && !visited.contains(current.id + "_" + (current.time + sixHours)))
-                queue.add(new PriorityObject(current.id, current.time + sixHours, current, current.g + currentNode.waitCost, current.h));
+            if ((current.time + sixHours <= mission.deadline) && !visited.contains(current.id + "_" + (current.time + sixHours)))
+                queue.add(new PriorityTimeObject(current.id, current.time + sixHours, current, current.g + currentNode.waitCost, current.h));
             for (int i = 0; i < adjacents.size(); i++) {
                 Node adjacent = adjacents.get(i);
                 double distance = distances.get(i);
                 // System.out.println(adjacent.id + " " + distance);
                 long time = current.time + calculateTravelTime(distance);
                 String key = adjacent.id + "_" + time;
-                if (time <= 1682888400 && !visited.contains(key)) {
+                if (time <= mission.deadline && !visited.contains(key)) {
                     double g = current.g + calculateCost(currentNode, adjacent, distance, current.time, time);
                     double h = calculateHeuristic(adjacent, mission.endNode);
-                    queue.add(new PriorityObject(adjacent.id, time, current, g, h));
+                    queue.add(new PriorityTimeObject(adjacent.id, time, current, g, h));
                 }
             }
         }
-        if (result != null) {
-            double cost = 0d;
-            StringBuilder builder = new StringBuilder();
-            String last = null;
-            while (result != null) {
-                if (result.id.equals(last))
-                    builder.append("PARK ");
-                else
-                    builder.append(result.id).append(" ");
-                last = result.id;
-                cost += result.g;
+        printPath(result);
+    }
 
-                result = result.parent;
-            }
-            builder.append(cost);
-            pathWriter.write(builder.toString() + "\n");
-            System.out.println(builder.toString());
-        } else {
+    private void printPath(PObject result) throws IOException {
+        if (result == null) {
             pathWriter.write("No feasible path\n");
             System.out.println("No feasible path");
+            pathWriter.flush();
+            return;
         }
+        double cost = 0d;
+        Stack<String> stack = new Stack<>();
+        while (result != null) {
+            stack.push(result.id());
+            cost += result.g();
+            result = result.parent();
+        }
+        StringBuilder builder = new StringBuilder();
+        String last = null;
+        while (!stack.isEmpty()) {
+            String current = stack.pop();
+            if (current.equals(last))
+                builder.append("PARK");
+            else
+                builder.append(current);
+            builder.append(" ");
+            last = current;
+        }
+        builder.append(cost);
+        pathWriter.write(builder.toString() + "\n");
+        System.out.println(builder.toString());
         pathWriter.flush();
     }
 
@@ -289,7 +293,7 @@ public class Main {
         readLimits();
         readMissions();
         for (Mission mission : missions)
-            if (debug)
+            if (task == 1)
                 simpleAstar(mission);
             else
                 applyAlgorithm(mission);
@@ -301,6 +305,7 @@ public class Main {
         // calculateEdges();
         Generator generator = new Generator(density);
         generator.generate(nodes.values().toArray());
+        System.out.println("Avg distance: " + Generator.total_distance / Generator.total_edges);
         printEdges();
     }
 
@@ -326,12 +331,11 @@ public class Main {
     }
 
     private void printEdges() throws IOException {
-        edgesWriter.write("from,to,distance\n"); // TODO - Might need to change this
+        edgesWriter.write("from,to\n");
         for (Node node : nodes.values()) {
             for (int i = 0; i < node.adjacents.size(); i++) {
                 Node adjacent = node.adjacents.get(i);
-                double distance = node.distance.get(i);
-                edgesWriter.write(node.id + "," + adjacent.id + "," + distance + "\n");
+                edgesWriter.write(node.id + "," + adjacent.id + "\n");
             }
             edgesWriter.flush();
         }
@@ -353,9 +357,9 @@ public class Main {
     }
 
     public static void main(String[] args) throws IOException {
-        Main.edges = Boolean.parseBoolean(args[0]);
-        Main.dijkstra = Boolean.parseBoolean(args[1]);
-        Main.debug = Boolean.parseBoolean(args[2]);
+        // Main.edges = Boolean.parseBoolean(args[0]);
+        // Main.dijkstra = Boolean.parseBoolean(args[1]);
+        // Main.debug = Boolean.parseBoolean(args[2]);
         // Main.input = args[3];
         Main main = new Main();
         if (edges)

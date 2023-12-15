@@ -7,24 +7,28 @@ import java.util.Arrays;
 public class Generator {
 
     double ratio;
+    public static double total_distance = 0;
+    public static double total_edges = 0;
 
     public Generator(double ratio){
         this.ratio = ratio;
     }
 
 
-    private boolean connected(Node node1, Node node2){
-        if (node1.equals(node2)) return true;
-        if (node1.adjacents.contains(node2) && node2.adjacents.contains(node1)) return true;
+    private boolean connected(Main.Node node1, Main.Node node2){
+        if (node1.id().equals(node2.id())) return true;
+        if (node1.adjacents().contains(node2) && node2.adjacents().contains(node1)) return true;
         return false;
     }
 
-    private void connect(Node node1, Node node2){
-        node1.adjacents.add(node2);
-        node2.adjacents.add(node1);
-        double dist = Main.haversine(node1.lat, node1.lon, node2.lat, node2.lon);
-        node1.distance.add(dist);
-        node2.distance.add(dist);
+    private void connect(Main.Node node1, Main.Node node2){
+        node1.adjacents().add(node2);
+        node2.adjacents().add(node1);
+        double dist = Main.haversine(node1.lat(), node1.lon(), node2.lat(), node2.lon());
+        node1.distance().add(dist);
+        node2.distance().add(dist);
+        total_distance += dist;
+        total_edges++;
     }
 
 
@@ -59,8 +63,8 @@ public class Generator {
 
             selected[dst] = true;
 
-            Node source = (Node) nodes.get(src);
-            Node dest = (Node) nodes.get(dst);
+            Main.Node source = (Main.Node) nodes.get(src);
+            Main.Node dest = (Main.Node) nodes.get(dst);
 
             connect(source, dest);
             
@@ -74,8 +78,8 @@ public class Generator {
         while(num_edges / (d) < ratio){
             int srrc = rand.nextInt(size);
             int dst = rand.nextInt(size);
-            Node source = (Node) nodes.get(srrc);
-            Node dest = (Node) nodes.get(dst);
+            Main.Node source = (Main.Node) nodes.get(srrc);
+            Main.Node dest = (Main.Node) nodes.get(dst);
             if (connected(source, dest)){
                 continue;
             }
