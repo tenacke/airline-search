@@ -37,6 +37,8 @@ public class Main {
     static boolean dijkstra;  // Change this to false to use A* algorithm
     static int task;
 
+    static boolean debug = false;
+
     static double density;
     
     final long sixHours = 21600; // 6 hours in seconds
@@ -63,9 +65,10 @@ public class Main {
         missionReader = new BufferedReader(new FileReader(new File("cases/missions/" + input + ".in")));
         if (edges){
             edgeReader = new BufferedReader(new FileReader(new File("cases/directions/" + input + ".csv")));
-            pathWriter = new BufferedWriter(new FileWriter(new File("cases/outputs/" + input + "-Task" + task + ".out")));
+            if (!debug)
+                pathWriter = new BufferedWriter(new FileWriter(new File("cases/outputs/" + input + "-Task" + task + ".out")));
         } 
-        else 
+        else if (!debug)
             edgesWriter = new BufferedWriter(new FileWriter(new File("cases/directions/" + input + ".csv")));
     }
 
@@ -220,16 +223,18 @@ public class Main {
 
     private void printPath(PObject result) throws IOException {
         if (result == null) {
+            if (debug){
+                System.out.println("No possible solution.");
+                return;
+            }
             pathWriter.write("No possible solution.\n");
-            // System.out.println("No possible solution.");
             pathWriter.flush();
             return;
         }
-        double cost = 0d;
+        double cost = result.g();
         Stack<String> stack = new Stack<>();
         while (result != null) {
             stack.push(result.id());
-            cost += result.g();
             result = result.parent();
         }
         StringBuilder builder = new StringBuilder();
@@ -244,9 +249,12 @@ public class Main {
             last = current;
         }
         builder.append(String.format("%.5f", cost));
-        pathWriter.write(builder.toString() + "\n");
-        // System.out.println(builder.toString());
-        pathWriter.flush();
+        if (debug)
+            System.out.println(builder.toString());
+        else {
+            pathWriter.write(builder.toString() + "\n");
+            pathWriter.flush();
+        }
     }
 
     private double calculateWeatherMultplier(int weather) {
