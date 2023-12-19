@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.Locale;
 import java.util.PriorityQueue;
 import java.util.Stack;
 
@@ -31,12 +32,12 @@ public class Main {
 
     private record Mission(String startNode, String endNode, long startTime, long deadline) { }
 
-    static String input = "TR-3";
-    static boolean edges = true; // Change this to false to calculate edges
-    static boolean dijkstra = false;  // Change this to false to use A* algorithm
-    static int task = 2;
+    static String input;
+    static boolean edges; // Change this to false to calculate edges
+    static boolean dijkstra;  // Change this to false to use A* algorithm
+    static int task;
 
-    static double density = 0.05d;
+    static double density;
     
     final long sixHours = 21600; // 6 hours in seconds
     String aircraftType; // Maximum edge distance in meters
@@ -219,8 +220,8 @@ public class Main {
 
     private void printPath(PObject result) throws IOException {
         if (result == null) {
-            pathWriter.write("No feasible path\n");
-            System.out.println("No feasible path");
+            pathWriter.write("No possible solution.\n");
+            // System.out.println("No possible solution.");
             pathWriter.flush();
             return;
         }
@@ -242,9 +243,9 @@ public class Main {
             builder.append(" ");
             last = current;
         }
-        builder.append(cost);
+        builder.append(String.format("%.5f", cost));
         pathWriter.write(builder.toString() + "\n");
-        System.out.println(builder.toString());
+        // System.out.println(builder.toString());
         pathWriter.flush();
     }
 
@@ -263,10 +264,11 @@ public class Main {
     private double calculateCost(Node node1, Node node2, double distance, long time1, long time2) {
         int fixedCost = 300;
         int weather1 = airfields.get(node1.airfield + "_" + time1).weather;
+        // System.out.println(node2.airfield + "_" + time2);
         int weather2 = airfields.get(node2.airfield + "_" + time2).weather;
         double departureMultiplier = calculateWeatherMultplier(weather1);
         double arrivalMultiplier = calculateWeatherMultplier(weather2);
-        double result = fixedCost * departureMultiplier * arrivalMultiplier + distance; // TODO descrpite eklenecek
+        double result = fixedCost * departureMultiplier * arrivalMultiplier + distance;
         return result;
     }
 
@@ -309,27 +311,6 @@ public class Main {
         printEdges();
     }
 
-    private void calculateEdges() {
-        for (Node node : nodes.values()) {
-            PriorityQueue<Node> queue = new PriorityQueue<>((a, b) -> {
-                double distance = calculateDistance(node, a);
-                double distance2 = calculateDistance(node, b);
-                return Double.compare(distance, distance2);
-            });
-            for (Node adjacent : nodes.values()) {
-                if (node.id.equals(adjacent.id))
-                    continue;
-                queue.add(adjacent);
-                // System.out.println(distance);
-            }
-            for (int i = 0; i < 5; i++) {
-                Node adj = queue.poll();
-                node.adjacents.add(adj);
-                node.distance.add(calculateDistance(node, adj));
-            }
-        }
-    }
-
     private void printEdges() throws IOException {
         edgesWriter.write("from,to\n");
         for (Node node : nodes.values()) {
@@ -357,10 +338,12 @@ public class Main {
     }
 
     public static void main(String[] args) throws IOException {
-        // Main.edges = Boolean.parseBoolean(args[0]);
-        // Main.dijkstra = Boolean.parseBoolean(args[1]);
-        // Main.debug = Boolean.parseBoolean(args[2]);
-        // Main.input = args[3];
+        Locale.setDefault(Locale.US);
+        Main.edges = Boolean.parseBoolean(args[0]);
+        Main.dijkstra = Boolean.parseBoolean(args[1]);
+        Main.task = Integer.parseInt(args[2]);
+        Main.input = args[3];
+        Main.density = Double.parseDouble(args[4]);
         Main main = new Main();
         if (edges)
             main.run();

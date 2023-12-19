@@ -1,0 +1,36 @@
+#!/bin/bash
+# This script is used to run the program
+TIMEFORMAT=%R
+
+for input in AS-0 AS-1 EU-0 EU-1 TR-0 TR-1 TR-2 TR-3
+do
+    echo "Running $input"
+    java -cp bin/ Main false false 1 $input # calculate the edges
+
+    echo "Task1 required" > cases/times/$input # clear the file
+    { time java -cp bin/ Main true false 1 $input 0.05; } 2>> cases/times/$input # task 1 A*
+
+    echo "Task2 bonus" >> cases/times/$input # clear the file
+    { time java -cp bin/ Main true false 2 $input 0.05; } 2>> cases/times/$input # task 2 A*
+    echo "Task2 required" >> cases/times/$input # clear the file
+    { time java -cp bin/ Main true true 2 $input 0.05; } 2>> cases/times/$input # task 2 dijkstra
+
+    echo "Done $input"
+done
+
+for input in INTER-0 INTER-1 INTER-2 INTER-3
+do
+    echo "Running $input"
+    java -cp bin/ Main false false 1 $input # calculate the edges
+
+    echo "Task1 required" > cases/times/$input # clear the file
+    { time java -cp bin/ Main true false 1 $input 0.03; } 2>> cases/times/$input # task 1 A*
+
+    echo "Task2 bonus" >> cases/times/$input # clear the file
+    { time java -cp bin/ Main true false 2 $input 0.03; } 2>> cases/times/$input # task 2 A*
+    echo "Task2 required" >> cases/times/$input # clear the file
+    { time java -cp bin/ Main true true 2 $input 0.03; } 2>> cases/times/$input # task 2 dijkstra
+
+    echo "Done $input"
+done
+

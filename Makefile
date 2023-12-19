@@ -1,6 +1,9 @@
-compile: src/Main.java
+compile: src/Main.java src/Generator.java
 	javac -d bin/ -cp bin/ src/*
 	
+run: compile # Pure run
+	time java -cp bin/ Main 
+
 1: compile # 1st phase of the project (edge weight)
 	java -cp bin/ Main false false false
 
