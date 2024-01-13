@@ -352,7 +352,9 @@ public class Main {
         Main.task = Integer.parseInt(args[2]);
         Main.input = args[3];
         Main.density = Double.parseDouble(args[4]);
+        System.out.println("1");
         Main main = new Main();
+        System.out.println("2");
         if (edges)
             main.run();
         else

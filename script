@@ -1,13 +1,15 @@
 #!/bin/bash
 # bunu runlayin abiler
-for input in AS-0 AS-1 EU-0 EU-1 TR-0 TR-1 TR-2 TR-3 do
+for input in AS-0 AS-1 EU-0 EU-1 TR-0 TR-1 TR-2 
+do
     java -cp bin/ Main true false 1 $input 0.05
     java -cp bin/ Main true false 2 $input 0.05
 
     echo "Done $input"
 done
 
-for input in INTER-0 INTER-1 INTER-2 INTER-3 do
+for input in INTER-0 INTER-1 INTER-2 
+do
     java -cp bin/ Main true false 1 $input 0.03
     java -cp bin/ Main true false 2 $input 0.03
 
