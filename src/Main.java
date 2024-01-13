@@ -62,7 +62,7 @@ public class Main {
     public Main() throws IOException { // INITIALIZE READERS
         inputReader = new BufferedReader(new FileReader(new File("cases/airports/" + input + ".csv")));
         dataReader = new BufferedReader(new FileReader(new File("cases/weather.csv")));
-        missionReader = new BufferedReader(new FileReader(new File("cases/missions/" + input + ".in")));
+        missionReader = new BufferedReader(new FileReader(new File("cases/flights/" + input + ".in")));
         if (edges){
             edgeReader = new BufferedReader(new FileReader(new File("cases/directions/" + input + ".csv")));
             if (!debug)
