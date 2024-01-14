@@ -82,7 +82,7 @@ public class Main {
             String airfield = line[1];
             double lat = Double.parseDouble(line[2]);
             double lon = Double.parseDouble(line[3]);
-            double waitCost = Double.parseDouble(line[4]) / 8;
+            double waitCost = Double.parseDouble(line[4]);
             nodes.put(id, new Node(id, lat, lon, airfield, waitCost, new LinkedList<>(), new LinkedList<>())); // Create node
         }
     }
@@ -352,9 +352,7 @@ public class Main {
         Main.task = Integer.parseInt(args[2]);
         Main.input = args[3];
         Main.density = Double.parseDouble(args[4]);
-        System.out.println("1");
         Main main = new Main();
-        System.out.println("2");
         if (edges)
             main.run();
         else
